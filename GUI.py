@@ -19,7 +19,7 @@ from matplotlib.backends.backend_tkagg import (
 from matplotlib.figure import Figure
 
 root = Tk()
-root.title('Cutting Speed Classifier')
+root.title('Cutting Speed Classifier') ##Title of the GUI
 root.iconbitmap('C:/MUSP_Local/GUI/GUI.ico')
 #root.geometry('400x400')
 root.resizable(width=True, height=True)
@@ -31,8 +31,11 @@ def openfn():
 
 def open_img():
     
+
     global img_names
     img_names = openfn()
+    print(img_names)
+
     i = 0
     
  
@@ -129,8 +132,6 @@ def confusion_matrix1():
 
 def popup():
     error = messagebox.askyesno('Wrong prediction' , 'Prediction number is wrong')
-    
-
 
 img = Image.open('C:/MUSP_Local/GUI/default_image.png')
 img = img.resize((400, 400), Image.ANTIALIAS)
