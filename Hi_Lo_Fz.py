@@ -14,14 +14,14 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
 
 class MyThresholdCallback(tensorflow.keras.callbacks.Callback):
-    def __init__(self, threshold):
-        super(MyThresholdCallback, self).__init__()
-        self.threshold = threshold
+	def __init__(self, threshold):
+		super(MyThresholdCallback, self).__init__()
+		self.threshold = threshold
 
-    def on_epoch_end(self, epoch, logs=None): 
-        val_acc = logs["val_accuracy"]
-        if val_acc >= self.threshold:
-            self.model.stop_training = True
+	def on_epoch_end(self, epoch, logs=None): 
+		val_acc = logs["val_accuracy"]
+		if val_acc >= self.threshold:
+			self.model.stop_training = True
 
 def model_train(model_add , x_train, y_train, x_test, y_test):
 
@@ -57,35 +57,53 @@ def model_train(model_add , x_train, y_train, x_test, y_test):
 			model.summary()
 			model.compile(loss='categorical_crossentropy', optimizer = 'adamax', metrics=['accuracy'])
 			# fit on data for 30 epochs
-			es = MyThresholdCallback(threshold=0.9)
+			es = MyThresholdCallback(threshold=0.89)
 			history = model.fit(x_train, y_train, validation_data = (x_test, y_test), epochs=100 , batch_size = 1, callbacks=[es])
-			plot_metrics(history)
+			plot_acc(history)
+			plot_loss(history)
 			model.save(model_add) 
 		else:
 			model = tensorflow.keras.models.load_model(model_add)
+			model.summary()
 
 	else:
 		print('No saved model found, fitting new model with the data')
 		print('Saving to ' + model_add)
 		model.summary()
 		model.compile(loss='categorical_crossentropy', optimizer = 'adam', metrics=['accuracy'])
-		es = MyThresholdCallback(threshold=0.9)
+		es = MyThresholdCallback(threshold=0.89)
 		history = model.fit(x_train, y_train, validation_data = (x_test, y_test), epochs=100 , batch_size = 1, callbacks=[es])
 		# fit on data for 30 epochs
-		plot_metrics(history)
+		plot_acc(history)
+		plot_loss(history)
 		model.save(model_add) 
 	return model
 
 
-def plot_metrics(history):
+def plot_acc(history):
 
 	print(history.history.keys())
 	plt.plot(history.history['accuracy'])
 	plt.plot(history.history['val_accuracy'])
-	plt.title('model accuracy')
-	plt.ylabel('accuracy')
+	plt.title('Model accuracy')
+	plt.ylabel('Accuracy')
 	plt.xlabel('epoch')
-	plt.legend(['train', 'val'], loc='upper left')
+	plt.legend(['Train', 'Val'], loc='upper left')
+	plt.show()
+	return
+
+def plot_loss(history):
+
+	print(history.history.keys())
+	loss = history.history['loss']
+	val_loss = history.history['val_loss']
+	epochs = range(1, len(loss) + 1)
+	plt.plot(epochs, loss, color='red', label='Training loss')
+	plt.plot(epochs, val_loss, color='green', label='Validation loss')
+	plt.title('Training and validation loss')
+	plt.xlabel('Epochs')
+	plt.ylabel('Loss')
+	plt.legend()
 	plt.show()
 	return
 
@@ -113,7 +131,7 @@ def load_images(images_train , images_val):
 
 	return x_train, y_train, x_test, y_test
 
-def conf_mat(model):
+def conf_mat(model,x_test,y_test):
 
 	y_pred_ohe = model.predict(x_test)  # shape=(n_samples, 12)
 	y_pred_labels = np.argmax(y_pred_ohe, axis=1)  # only necessary if output has one-hot-encoding, shape=(n_samples)
@@ -123,10 +141,9 @@ def conf_mat(model):
 	print(y_true_labels)
 
 	cm = confusion_matrix(y_true_labels ,  y_pred_labels)  # shape=(12, 12)
-	disp = ConfusionMatrixDisplay(cm , display_labels = ['High_Feed' , 'Low_Feed'])
-	#disp = ConfusionMatrixDisplay(cm , display_labels = ['High_Speed'])
-	fig, axs = plt.subplots(1, 1, figsize=(6, 6)) 
-	disp.plot(axs , cmap = plt.cm.Blues)
+	disp = ConfusionMatrixDisplay(cm , display_labels = ['.15 .2 [mm/tooth] \n High ' , '.1 [m/min]\n Low'])
+	disp.plot(cmap = plt.cm.Blues)
+	disp.ax_.set(title = 'Confusion matrix for High and Low \n Feed per tooth [fz]', xlabel='Predicted [fz] Class', ylabel='True [fz] Class' )
 	plt.show()
 
 	return
@@ -138,4 +155,6 @@ images_val   = 'C:/MUSP_Local/MUSP_Data/New_data/Images/Hi_Lo_Fz/Val'
 
 x_train, y_train, x_test, y_test = load_images(images_train, images_val)
 model = model_train(model_add , x_train, y_train, x_test, y_test)
-conf_mat(model)
+#model.save_weights("C:/MUSP_Local/Keras_models/Hi_Lo_fz/CNN_Fz_weights")
+
+conf_mat(model ,x_test,y_test)
