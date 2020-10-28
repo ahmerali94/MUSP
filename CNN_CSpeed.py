@@ -12,6 +12,16 @@ import matplotlib.pyplot as plt
 from tkinter import *
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
+class MyThresholdCallback(tensorflow.keras.callbacks.Callback):
+    def __init__(self, threshold):
+        super(MyThresholdCallback, self).__init__()
+        self.threshold = threshold
+
+    def on_epoch_end(self, epoch, logs=None): 
+        val_acc = logs["val_accuracy"]
+        if val_acc >= self.threshold:
+            self.model.stop_training = True
+
 
 def model_train(model_add , x_train, y_train, x_test, y_test):
 
@@ -47,9 +57,11 @@ def model_train(model_add , x_train, y_train, x_test, y_test):
             model.summary()
             model.compile(loss='categorical_crossentropy', optimizer = 'adamax', metrics=['accuracy'])
             # fit on data for 30 epochs
-            es = EarlyStopping(monitor='val_loss', mode='min')
-            model.fit(x_train, y_train, validation_data = (x_test, y_test), epochs=100 , batch_size = 1, callbacks=[es])
-            model.save(model_add) 
+            es = MyThresholdCallback(threshold=0.89)
+            history =  model.fit(x_train, y_train, validation_data = (x_test, y_test), epochs=100 , batch_size = 1, callbacks=[es])
+            model.save(model_add)
+            plot_acc(history)
+            plot_loss(history) 
         else:
             model = tensorflow.keras.models.load_model(model_add)
 
@@ -57,10 +69,13 @@ def model_train(model_add , x_train, y_train, x_test, y_test):
         print('No saved model found, fitting new model with the data')
         print('Saving to ' + model_add)
         model.summary()
-        model.compile(loss='categorical_crossentropy', optimizer = 'adam', metrics=['accuracy'])
+        model.compile(loss='categorical_crossentropy', optimizer = 'adamax', metrics=['accuracy'])
         # fit on data for 30 epochs
-        model.fit(x_train, y_train, validation_data = (x_test, y_test), epochs=100 , batch_size = 1 )
-        model.save(model_add) 
+        es = MyThresholdCallback(threshold=0.89)
+        history = model.fit(x_train, y_train, validation_data = (x_test, y_test), epochs=100 , batch_size = 1 , callbacks=[es])
+        model.save(model_add)
+        plot_acc(history)
+        plot_loss(history) 
     return model
 
 def load_images(images_train , images_val):
@@ -97,18 +112,43 @@ def conf_mat(model):
     print(y_true_labels)
 
     cm = confusion_matrix(y_true_labels ,  y_pred_labels)  # shape=(12, 12)
-    disp = ConfusionMatrixDisplay(cm , display_labels = ['High_Speed' , 'Low_Speed'])
-    #disp = ConfusionMatrixDisplay(cm , display_labels = ['High_Speed'])
-    fig, axs = plt.subplots(1, 1, figsize=(6, 6)) 
-    disp.plot(axs , cmap = plt.cm.Blues)
+    disp = ConfusionMatrixDisplay(cm , display_labels = ['220 150 [m/min] \n High' , '80 [m/min]\n Low'])
+    disp.plot(cmap = plt.cm.Blues)
+    disp.ax_.set(title = 'Confusion matrix for High and Low speed cuting [Vc]', xlabel='Predicted [Vc] Class', ylabel='True [Vc] Class')
     plt.show()
 
+
+    return
+def plot_acc(history):
+
+    print(history.history.keys())
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
+    plt.title('Model accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['Train', 'Val'], loc='upper left')
+    plt.show()
     return
 
+def plot_loss(history):
+    
+    print(history.history.keys())
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+    epochs = range(1, len(loss) + 1)
+    plt.plot(epochs, loss, color='red', label='Training loss')
+    plt.plot(epochs, val_loss, color='green', label='Validation loss')
+    plt.title('Training and validation loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
+    return
 
-model_add    = 'C:/MUSP_Local/Keras_models/CNN_Split_acc_test.h5'
-images_train = 'C:/MUSP_Local/MUSP_Data/New_data/Images/Train'
-images_val   = 'C:/MUSP_Local/MUSP_Data/New_data/Images/Val'
+model_add    = 'C:/MUSP_Local/Keras_models/CNN_Vc.h5'
+images_train = 'C:/MUSP_Local/MUSP_Data/New_data/Images/Hi_Lo_Vc/Train'
+images_val   = 'C:/MUSP_Local/MUSP_Data/New_data/Images/Hi_Lo_Vc/Val'
 
 x_train, y_train, x_test, y_test = load_images(images_train, images_val)
 model = model_train(model_add , x_train, y_train, x_test, y_test)
